@@ -114,6 +114,9 @@ function create() {
             } else {
                 // Other players
                 players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
+                players[id].setSize(players[id].width * 0.75, players[id].height * 0.3);
+                players[id].setOffset(players[id].body.offset.x, players[id].body.offset.y + 20);
+                players[id].setDepth(players[id].y);
             }
         }
     });
@@ -259,6 +262,10 @@ function create() {
 function update() {
     move();
 
+    if (player && !this.cameras.main.isFollowing) {
+        this.cameras.main.startFollow(player);
+    }
+
     if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
         loadInventory();
         openInventory();
@@ -301,64 +308,67 @@ function update() {
 
 function move() {
     let velocityX = 0, velocityY = 0;
-    
-    if (cursors.shift.isDown) {
-        if (stamina > 1) {
-            speed = sprintSpeed;
-        } else {
+
+    if (player) {
+        if (cursors.shift.isDown) {
+            if (stamina > 1) {
+                speed = sprintSpeed;
+            } else {
+                speed = defaultSpeed;
+            }
+            isRunning = true;
+        } else if (cursors.shift.isUp) {
             speed = defaultSpeed;
-        }
-        isRunning = true;
-    } else if (cursors.shift.isUp) {
-        speed = defaultSpeed;
-        isRunning = false;
-    }
-    
-    if (cursors.left.isDown || scene.keyA.isDown) {
-        velocityX = -1 * speed;
-        setAnimation('left');
-    } else if (cursors.right.isDown || scene.keyD.isDown) {
-        velocityX = speed;
-        setAnimation('right');
-    }
-
-    if (cursors.up.isDown || scene.keyW.isDown) {
-        velocityY = -1 * speed;
-    } else if (cursors.down.isDown || scene.keyS.isDown) {
-        velocityY = speed;
-    }
-
-    player.setVelocity(velocityX, velocityY);
-
-    if (velocityX === 0 && velocityY === 0) {
-        setAvatarIdle();
-        player.anims.stop();
-        currentAnim = "";
-    } else if (!velocityX) {
-        setAnimation(cursors.up.isDown || scene.keyW.isDown ? 'up' : 'down');
-    }
-
-    if (velocityY != lastVelocityState.y) {
-        player.setDepth(player.y);
-    }
-
-    lastVelocityState = { x : velocityX, y : velocityY };
-
-    // Stamina
-    if (isRunning) {
-        if (stamina > staminaDrainRate) {
-            stamina -= staminaDrainRate;
-        } else {
             isRunning = false;
         }
-    } else {
-        if (stamina < maxStamina) {
-            stamina += staminaRegenRate;
+        
+        if (cursors.left.isDown || scene.keyA.isDown) {
+            velocityX = -1 * speed;
+            setAnimation('left');
+        } else if (cursors.right.isDown || scene.keyD.isDown) {
+            velocityX = speed;
+            setAnimation('right');
         }
+    
+        if (cursors.up.isDown || scene.keyW.isDown) {
+            velocityY = -1 * speed;
+        } else if (cursors.down.isDown || scene.keyS.isDown) {
+            velocityY = speed;
+        }
+    
+        player.setVelocity(velocityX, velocityY);
+    
+        if (velocityX === 0 && velocityY === 0) {
+            setAvatarIdle();
+            player.anims.stop();
+            currentAnim = "";
+        } else if (!velocityX) {
+            setAnimation(cursors.up.isDown || scene.keyW.isDown ? 'up' : 'down');
+        }
+    
+        if (velocityY != lastVelocityState.y) {
+            player.setDepth(player.y);
+        }
+    
+        lastVelocityState = { x : velocityX, y : velocityY };
+    
+        // Stamina
+        if (isRunning) {
+            if (stamina > staminaDrainRate) {
+                stamina -= staminaDrainRate;
+            } else {
+                isRunning = false;
+            }
+        } else {
+            if (stamina < maxStamina) {
+                stamina += staminaRegenRate;
+            }
+        }
+    
+        drawStaminaBar();
+        scene.staminaText.setText(`Stamina: ${Math.floor(stamina)}%`);
     }
-
-    drawStaminaBar();
-    scene.staminaText.setText(`Stamina: ${Math.floor(stamina)}%`);
+    
 }
 
 function setAnimation(anim) {
