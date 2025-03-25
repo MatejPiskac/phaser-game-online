@@ -29,7 +29,7 @@ const socket = io();  // Connect to the server
 const game = new Phaser.Game(config);
 const canvas = document.getElementById("game-container");
 
-let scene, cursors, currentAnim = "";
+let scene, cursors, currentAnim = ""
 let objects = [], collide_objects = [], gui_objects = [];
 // map
 let background;
@@ -43,9 +43,6 @@ let flashlight = false;
 let flashlength = 250;
 let change = false;
 // player speed and animations
-let once = true;
-
-
 let player, players = {};
 let lastVelocityState = { x: 0, y: 0 };
 let defaultSpeed = 100, sprintSpeed = 150, speed = defaultSpeed;
@@ -101,8 +98,19 @@ function create() {
         for (let id in serverPlayers) {
             if (id === socket.id) {
                 // This is the current user
-                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
-                
+                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'player');
+
+                // Delay the camera follow by a tiny amount of time to ensure the player exists
+                this.time.addEvent({
+                    delay: 100,  // Delay for 100ms (or a small value)
+                    callback: () => {
+                        this.cameras.main.startFollow(player);
+                        player.setSize(player.width * 0.75, player.height * 0.3);
+                        player.setOffset(player.body.offset.x, player.body.offset.y + 20);
+                        player.setDepth(player.y);
+                    },
+                    callbackScope: this
+                });
             } else {
                 // Other players
                 players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
@@ -249,15 +257,6 @@ function create() {
 }
 
 function update() {
-    if (once) {
-        this.cameras.main.startFollow(player);
-        player.setSize(player.width * 0.75, player.height * 0.3);
-        player.setOffset(player.body.offset.x, player.body.offset.y + 20);
-        player.setDepth(player.y);
-        once = false;
-    }
-    
-
     move();
 
     if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
