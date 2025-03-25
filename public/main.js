@@ -23,6 +23,9 @@ const config = {
     parent: 'game-container'
 };
 
+const socket = io();  // Connect to the server
+
+
 const game = new Phaser.Game(config);
 const canvas = document.getElementById("game-container");
 
