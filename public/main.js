@@ -97,18 +97,23 @@ function create() {
     socket.on('currentPlayers', (serverPlayers) => {
         for (let id in serverPlayers) {
             if (id === socket.id) {
-                // This is the current user, store it separately
-                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'player');
+                // This is the current user
+                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
+                this.cameras.main.startFollow(player);
+                player.setSize(player.width * 0.75, player.height * 0.3);
+                player.setOffset(player.body.offset.x, player.body.offset.y + 20);
+                player.setDepth(player.y);
             } else {
-                // Other players go into the players object
-                players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'player');
+                // Other players
+                players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
             }
         }
     });
+    
 
     // Listen for new players
     socket.on('newPlayer', (data) => {
-        players[data.id] = this.physics.add.sprite(data.x, data.y, 'player');
+        players[data.id] = this.physics.add.sprite(data.x, data.y, 'avatar');
     });
 
     // Listen for player movement
