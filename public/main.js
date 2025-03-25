@@ -88,7 +88,39 @@ function create() {
     this.physics.world.setBounds();
 
     // PLAYER
-    player = this.physics.add.sprite(400, 300, 'avatar').setScale(0.75).setCollideWorldBounds(true);
+    //player = this.physics.add.sprite(400, 300, 'avatar').setScale(0.75).setCollideWorldBounds(true);
+
+    socket.on('currentPlayers', (serverPlayers) => {
+        for (let id in serverPlayers) {
+            if (id === socket.id) {
+                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
+            } else {
+                players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
+            }
+        }
+    });
+
+    // Handle new players joining
+    socket.on('newPlayer', (data) => {
+        players[data.id] = this.physics.add.sprite(data.x, data.y, 'avatar');
+    });
+
+    // Handle player movement updates
+    socket.on('playerMoved', (data) => {
+        if (players[data.id]) {
+            players[data.id].x = data.x;
+            players[data.id].y = data.y;
+        }
+    });
+
+    // Handle player disconnecting
+    socket.on('removePlayer', (id) => {
+        if (players[id]) {
+            players[id].destroy();
+            delete players[id];
+        }
+    });
+
     this.cameras.main.startFollow(player);
     player.setSize(player.width * 0.75, player.height * 0.3);
     player.setOffset(player.body.offset.x, player.body.offset.y + 20);
