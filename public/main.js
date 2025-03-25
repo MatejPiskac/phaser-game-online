@@ -29,7 +29,7 @@ const socket = io();  // Connect to the server
 const game = new Phaser.Game(config);
 const canvas = document.getElementById("game-container");
 
-let scene, cursors, player, currentAnim = ""
+let scene, cursors, currentAnim = ""
 let objects = [], collide_objects = [], gui_objects = [];
 // map
 let background;
@@ -43,6 +43,7 @@ let flashlight = false;
 let flashlength = 250;
 let change = false;
 // player speed and animations
+let player, players = {};
 let lastVelocityState = { x: 0, y: 0 };
 let defaultSpeed = 100, sprintSpeed = 150, speed = defaultSpeed;
 let avatarIdle = { up: 0, right: 15, down: 4, left: 8 };
@@ -96,19 +97,21 @@ function create() {
     socket.on('currentPlayers', (serverPlayers) => {
         for (let id in serverPlayers) {
             if (id === socket.id) {
-                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
+                // This is the current user, store it separately
+                player = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'player');
             } else {
-                players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'avatar');
+                // Other players go into the players object
+                players[id] = this.physics.add.sprite(serverPlayers[id].x, serverPlayers[id].y, 'player');
             }
         }
     });
 
-    // Handle new players joining
+    // Listen for new players
     socket.on('newPlayer', (data) => {
-        players[data.id] = this.physics.add.sprite(data.x, data.y, 'avatar');
+        players[data.id] = this.physics.add.sprite(data.x, data.y, 'player');
     });
 
-    // Handle player movement updates
+    // Listen for player movement
     socket.on('playerMoved', (data) => {
         if (players[data.id]) {
             players[data.id].x = data.x;
@@ -116,7 +119,7 @@ function create() {
         }
     });
 
-    // Handle player disconnecting
+    // Remove disconnected players
     socket.on('removePlayer', (id) => {
         if (players[id]) {
             players[id].destroy();
