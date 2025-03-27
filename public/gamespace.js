@@ -1,32 +1,3 @@
-const config = {
-    type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
-    input: {
-        activePointers: 1
-    },
-    physics: {
-        default: 'arcade',
-        arcade: {
-            debug: true
-        }
-    },
-    scene: {
-        preload: preload,
-        create: create,
-        update: update
-    },
-    scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH
-    },
-    parent: 'game-container'
-};
-
-const socket = io();
-const game = new Phaser.Game(config);
-const canvas = document.getElementById("game-container");
-
 let scene, cursors, currentAnim = ""
 let objects = [], collide_objects = [], gui_objects = [];
 // map
@@ -69,71 +40,16 @@ let light = false;
 let npc, patrolPath, npcSpeed = 100;
 let distanceToPlayer, npcChaseRange = 200;
 
-let updateInteractivePlayers = false;
-let interactivePlayers = {};
+
+
+
 // SOCKET
-let socketCall = false;
+const player = new Player(x,y);
 let players = {};
-let player, playerX, playerY, playerAnim;
-let spriteAnimSet = false;
+socket.on('updatePlayers', (serverPlayers) => {
+    console.log(serverPlayers);
 
-let playerId;
-socket.on('playerId', (id) => {
-    console.log(`My Player ID: ${id}`);
-    playerId = id;
 });
-
-socket.on('updatePlayers', (backendPlayers) => {
-    console.log(backendPlayers);
-    socketCall = true;
-    for (const id in backendPlayers) {
-        const backendPlayer = backendPlayers[id];
-        if (!players[id]) {
-            players[id] = new Player(backendPlayer.x, backendPlayer.y, this, 0.75);
-        } else if (id != playerId) {
-            players[id].x = backendPlayer.x;
-            players[id].y = backendPlayer.y;
-        }
-    }
-    for (const id in players) {
-        if (!backendPlayers[id]) {
-            delete players[id];
-        }
-    }
-});
-
-socket.on('updatePositions', (id, velocityX, velocityY, anim) => {
-    if (interactivePlayers[id] && id != playerId) {
-        moveSprite(interactivePlayers[id], velocityX, velocityY, anim);
-    }
-});
-
-function updatePlayers() {
-    for (const id in players) {
-        if (interactivePlayers[id]) {
-            interactivePlayers[id].x = players[id].x;
-            interactivePlayers[id].y = players[id].y;
-        } else {
-            const avatar = players[id];
-            interactivePlayers[id] = avatar.draw();
-        }
-    }
-
-    for (const id in interactivePlayers) {
-        if (id == playerId) {
-            player = interactivePlayers[id];
-            playerX = player.x;
-            playerY = player.y;
-        }
-        if (!players[id]) {
-            interactivePlayers[id].destroy();
-            delete interactivePlayers[id];
-        }
-    }
-
-    //this.physics.add.collider(player, interactivePlayers);
-    
-}
 
 function preload() {
     this.load.image('floor', 'assets/floor.webp');
@@ -156,7 +72,7 @@ function create() {
     this.physics.world.setBounds();
 
     // PLAYER
-    updatePlayers();
+    player = new Player(400, 300, this, 0.75);
     /*
     player = this.physics.add.sprite(400, 300, 'avatar').setScale(0.75).setCollideWorldBounds(true);
     this.cameras.main.startFollow(player);
@@ -176,8 +92,6 @@ function create() {
     spotlight = this.add.graphics();
     spotlight.fillStyle(0x000000, 0);
     spotlight.fillCircle(player.x, player.y, player.height / 2 + 5);
-    spotlight.x = player.x * 2;
-    spotlight.y = player.y * 2;
 
     mask = spotlight.createGeometryMask();
     mask.invertAlpha = true;
@@ -315,54 +229,13 @@ function update() {
             combinedMaskGraphics.fillCircle(player.x, player.y, player.height / 2 + 5);
         }
         */
+
     }
 
-    if (socketCall) {
-        updatePlayers();
-        socketCall = false;
-    }
-
-    spotlight.x = player.x - playerX;
-    spotlight.y = player.y - playerY;
+    spotlight.x = player.x-400;
+    spotlight.y = player.y-300;
 
     
-}
-
-async function moveSprite(sprite, velocityX, velocityY, anim) {
-    if (sprite) {
-        sprite.setVelocity(velocityX, velocityY);
-        if (anim) {
-            if (sprite.anims.isPlaying) {
-                if (sprite.anims.currentAnim.key !== anim) {
-                    setAnimation(anim, sprite);
-                    console.log("playing ANIM");
-                    spriteAnimSet = true;
-                } else if (velocityX == 0 && velocityY == 0 && spriteAnimSet) {
-                    sprite.anims.stop();
-                    setSpriteIdle(sprite, anim);
-                    console.log("ANIM stop");
-                    spriteAnimSet = false;
-                }
-            } else {
-                if (velocityX !== 0 && velocityY !== 0) {
-                    console.log("playing ANIM");
-                    setAnimation(anim, sprite);
-                } else {
-                    sprite.anims.stop();
-                    setSpriteIdle(sprite, anim);
-                    console.log("ANIM stop");
-                    spriteAnimSet = false;
-                }
-                
-            }
-        }
-    }
-}
-
-async function updateDepth() {
-    for (const id in interactivePlayers) {
-        interactivePlayers[id].setDepth(interactivePlayers[id].y);
-    }
 }
 
 function move() {
@@ -383,11 +256,9 @@ function move() {
         
         if (cursors.left.isDown || scene.keyA.isDown) {
             velocityX = -1 * speed;
-            playerAnim = 'left';
             setAnimation('left');
         } else if (cursors.right.isDown || scene.keyD.isDown) {
             velocityX = speed;
-            playerAnim = 'right';
             setAnimation('right');
         }
     
@@ -404,11 +275,8 @@ function move() {
             player.anims.stop();
             currentAnim = "";
         } else if (!velocityX) {
-            playerAnim = cursors.up.isDown || scene.keyW.isDown ? 'up' : 'down'; 
             setAnimation(cursors.up.isDown || scene.keyW.isDown ? 'up' : 'down');
         }
-        
-        socket.emit('spriteMove', velocityX, velocityY, playerAnim);
     
         if (velocityY != lastVelocityState.y) {
             player.setDepth(player.y);
@@ -416,8 +284,6 @@ function move() {
     
         lastVelocityState = { x : velocityX, y : velocityY };
     
-        player.setDepth(player.y);
-        updateDepth();
         // Stamina
         if (isRunning) {
             if (stamina > staminaDrainRate) {
@@ -437,16 +303,11 @@ function move() {
     
 }
 
-function setAnimation(anim, avatar = null) {
-    if (avatar) {
-        avatar.play(anim);
-    } else {
-        if (currentAnim !== anim) {
-            player.play(anim);
-            currentAnim = anim;
-        }
+function setAnimation(anim) {
+    if (currentAnim !== anim) {
+        player.play(anim);
+        currentAnim = anim;
     }
-    
 }
 
 function createAnimations(scene) {
@@ -526,19 +387,6 @@ function setAvatarIdle() {
         player.setFrame(lastVelocityState.x > 0 ? avatarIdle.right : avatarIdle.left);
     } else if (lastVelocityState.y != 0) {
         player.setFrame(lastVelocityState.y > 0 ? avatarIdle.up : avatarIdle.down);
-    }
-}
-
-function setSpriteIdle(sprite, anim) {
-    console.log(anim);
-    if (anim == "up") {
-        sprite.setFrame(avatarIdle.up);
-    } else if (anim == "down") {
-        sprite.setFrame(avatarIdle.down);
-    } else if (anim == "left") {
-        sprite.setFrame(avatarIdle.left);
-    } else if (anim == "right") {
-        sprite.setFrame(avatarIdle.right);
     }
 }
 

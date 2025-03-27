@@ -1,48 +1,57 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+const { Server } = require('socket.io');
+
+const PORT = process.env.PORT || 3000;
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new Server(server, { pingInterval: 2000, pingTimeout: 5000 });
 
 app.use(express.static('public'));
 
-let players = {}; // Store all connected players
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.hml');
+});
+
+const players = {}; // Store all connected players
 
 io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
 
     // Add new player
     players[socket.id] = {
-        x: Math.random() * 800, // Random spawn position
-        y: Math.random() * 600
+        x: Math.random() * 150 + 250,
+        y: Math.random() * 150 + 150
     };
 
+    console.log(`Players: ${players}`);
+
     // Send all players to the new player
-    socket.emit('currentPlayers', players);
-
-    // Notify all other players about the new player
-    socket.broadcast.emit('newPlayer', { id: socket.id, x: players[socket.id].x, y: players[socket.id].y });
-
-    // Handle player movement
-    socket.on('playerMovement', (data) => {
-        if (players[socket.id]) {
-            players[socket.id].x = data.x;
-            players[socket.id].y = data.y;
-            socket.broadcast.emit('playerMoved', { id: socket.id, x: data.x, y: data.y });
-        }
-    });
+    socket.emit('playerId', socket.id);
+    io.emit('updatePlayers', players);
+    
 
     // Handle player disconnect
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
         console.log(`Player disconnected: ${socket.id}`);
         delete players[socket.id];
-        io.emit('removePlayer', socket.id);
+        io.emit('updatePlayers', players);
+    });
+/*
+    socket.on('playerMove', (velocityX, velocityY, anim) => {
+        players[socket.id].x += velocityX;
+        players[socket.id].y += velocityY;
+        io.emit('updatePositions', socket.id, velocityX, velocityY, anim);
+    });*/
+
+    socket.on('spriteMove', (velocityX, velocityY, anim) => {
+        players[socket.id].x += velocityX;
+        players[socket.id].y += velocityY;
+        io.emit('updatePositions', socket.id, velocityX, velocityY, anim);
     });
 });
 
-const PORT = process.env.PORT || 3000;  // Default to 3000 for local testing
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
